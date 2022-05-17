@@ -1,38 +1,122 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Aldrich&display=swap');
 .App {
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+.Cpointer {
+  cursor: pointer;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.cards {
+  position: relative;
+  /* background-color: rgb(146, 151, 151); */
+  /* border-radius: 8px; */
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  width: 100%;
 }
 
-.App-link {
-  color: #61dafb;
+.cards .circle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: pointer;
+  /* background-color: rgb(93, 47, 47); */
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.cards .circle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgb(84, 84, 117);
+  clip-path: circle(55px at center);
+  transition: 0.5s;
+  /* border-radius: 8rem; */
+}
+
+.cards:hover .circle:before {
+  clip-path: circle(600px at center);
+  border-radius: 1rem;
+  background-color: rgb(56, 56, 73);
+}
+
+.cards .mainIcon {
+  position: relative;
+  transform: translate(-50%, -50%);
+  /* height: 315px; */
+  pointer-events: none;
+  transition: 0.5s;
+  top: 0%;
+  bottom: 47%;
+  right: -127px;
+}
+
+.cards:hover .mainIcon {
+  left: 83%;
+  top: -1em;
+}
+
+.cards .content {
+  position: absolute;
+  /* width: 47%; */
+  top: 35px;
+  /* left: 20%; */
+  /* padding: 20px; */
+  transition: 0.5s;
+  opacity: 0;
+  visibility: visible;
+}
+
+.cards:hover .content {
+  left: 0%;
+  right: 20%;
+  opacity: 1;
+  visibility: visible;
+}
+
+.heading {
+  font-size: medium;
+}
+
+.circletitle {
+  position: absolute;
+  left: 5em;
+  bottom: 3rem;
+  color: beige;
+  /* height: 315px; */
+  pointer-events: none;
+  transition: 0.5s;
+}
+
+.cards:hover .circletitle {
+  left: 1rem;
+  top: 1rem;
+}
+
+.logoset1 {
+  position: absolute;
+  left: 7px;
+  top: 6px;
+  color: #e14160;
+}
+.logoset2 {
+  position: absolute;
+  left: 27px;
+}
+
+.logotext {
+  position: absolute;
+  left: 63px;
+  font-size: larger;
+  top: 7px;
+  background: linear-gradient(to right, #ca3c58 0%, #dbdbfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: #a02c2c00;
+  font-family: 'Aldrich', sans-serif;
 }
