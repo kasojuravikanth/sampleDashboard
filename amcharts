@@ -1,0 +1,195 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-inner-declarations */
+import React, { useLayoutEffect, useRef, useEffect } from "react";
+import * as am5 from "@amcharts/amcharts5";
+import * as am5xy from "@amcharts/amcharts5/xy";
+import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
+import { isEmpty } from "lodash";
+import { useMutation } from "@tanstack/react-query";
+import { useParams } from "react-router-dom";
+import { vantagexApi } from "@edxi/core";
+
+import { customreportDefaultPayloads } from "~/constant";
+import { CustomReportFilter, Tprovider } from "~/types";
+import { customReportEndPoints } from "~/utils";
+import { useOptixContext } from "~/provider";
+
+import { useCostReportContext } from "../provider";
+
+const StackedColumnChart: React.FC = () => {
+	const chartRef = useRef<am5.Root | null>(null);
+	const chartComponentRef = useRef<am5xy.XYChart | null>(null);
+
+	const { provider } = useParams<{ provider: Tprovider }>();
+	const [cdata, setData] = React.useState<any>({ series: [], x_axis: [] });
+
+	const { filter, getPayload, setX_axisDatalength } = useCostReportContext();
+	const { costType } = useOptixContext();
+
+	const generatePayload = (provider: Tprovider) => {
+		const payload: any = {
+			page_size: filter?.page_size
+		};
+
+		customreportDefaultPayloads?.forEach(field => {
+			const value = filter[field as keyof CustomReportFilter]?.[provider];
+			if (value?.length !== 0 && !isEmpty(value)) {
+				payload[field] = [value];
+			}
+		});
+
+		return payload;
+	};
+
+	const useCustomWidget = useMutation({
+		mutationKey: [
+			`custom_widget_${provider}`,
+			`${JSON.stringify(getPayload())}_${filter?.page_size}_${filter?.group_by[provider as Tprovider]}_${filter?.x_axis[provider as Tprovider]}_${filter?.y_axis[provider as Tprovider]}_${filter?.aggregations[provider as Tprovider]}_${filter?.groupBy[provider as Tprovider]}`
+		],
+		mutationFn: () => {
+			const payload = generatePayload(provider as Tprovider);
+			return vantagexApi<any>({
+				url: customReportEndPoints?.customReportWidget[provider as Tprovider],
+				method: "POST",
+				body: getPayload(payload)
+			});
+		},
+		onSuccess: async (data: any) => {
+			setData(data);
+			setX_axisDatalength(data?.x_axis?.length);
+		}
+	});
+
+	React.useEffect(() => {
+		if (Boolean(provider) && Boolean(costType)) {
+			useCustomWidget.mutate();
+		}
+	}, [
+		filter.aggregations,
+		filter.y_axis,
+		filter.x_axis,
+		filter.group_by,
+		filter.page_size,
+		provider,
+		costType,
+		JSON.stringify(getPayload())
+	]);
+	useLayoutEffect(() => {
+		if (!chartRef.current) {
+			chartRef.current = am5.Root.new("chartdiv");
+			chartRef.current.setThemes([am5themes_Animated.new(chartRef.current)]);
+
+			chartComponentRef.current = chartRef.current.container.children.push(
+				am5xy.XYChart.new(chartRef.current, {
+					panX: false,
+					panY: false,
+					wheelX: "panX",
+					wheelY: "zoomX",
+					paddingLeft: 0,
+					layout: chartRef.current.verticalLayout
+				})
+			);
+
+			chartComponentRef.current.set(
+				"scrollbarX",
+				am5.Scrollbar.new(chartRef.current, {
+					orientation: "horizontal"
+				})
+			);
+
+			chartComponentRef.current.root.dom.style.height = "calc(100% - 6px)";
+		}
+
+		return () => {
+			if (chartRef.current) {
+				chartRef.current.dispose();
+			}
+		};
+	}, []);
+
+	useEffect(() => {
+		if (chartComponentRef.current && cdata.series.length > 0 && cdata.x_axis.length > 0) {
+			const chart = chartComponentRef.current;
+			const root = chartRef.current!;
+
+			chart.series.clear();
+			chart.xAxes.clear();
+			chart.yAxes.clear();
+
+			const chartData = cdata.x_axis.map((xValue: string, index: number) => {
+				const dataPoint: { [key: string]: string | number } = { xValue };
+				cdata.series.forEach((series: any) => {
+					dataPoint[series.name] = series.values[index];
+				});
+				return dataPoint;
+			});
+
+			const xRenderer = am5xy.AxisRendererX.new(root, {
+				minGridDistance: 50,
+				cellStartLocation: 0.1,
+				cellEndLocation: 1
+			});
+
+			const xAxis = chart.xAxes.push(
+				am5xy.CategoryAxis.new(root, {
+					categoryField: "xValue",
+					renderer: xRenderer,
+					tooltip: am5.Tooltip.new(root, {})
+				})
+			);
+
+			xRenderer.grid.template.setAll({ location: 1 });
+			xAxis.data.setAll(chartData);
+
+			const yAxis = chart.yAxes.push(
+				am5xy.ValueAxis.new(root, {
+					min: 0,
+					renderer: am5xy.AxisRendererY.new(root, { strokeOpacity: 0.1 })
+				})
+			);
+
+			function makeSeries(name: string, fieldName: string) {
+				const series = chart.series.push(
+					am5xy.ColumnSeries.new(root, {
+						name: name,
+						stacked: true,
+						xAxis: xAxis,
+						yAxis: yAxis,
+						valueYField: fieldName,
+						categoryXField: "xValue"
+					})
+				);
+
+				series.columns.template.setAll({
+					tooltipText: "{name}, {categoryX}: {valueY}",
+					tooltipY: am5.percent(10)
+				});
+
+				series.data.setAll(chartData);
+
+				series.appear(1000);
+
+				series.bullets.push(() => {
+					return am5.Bullet.new(root, {
+						sprite: am5.Label.new(root, {
+							fill: root.interfaceColors.get("alternativeText"),
+							centerY: am5.p50,
+							centerX: am5.p50,
+							populateText: true
+						})
+					});
+				});
+			}
+
+			cdata.series.forEach((series: any) => {
+				makeSeries(series.name, series.name);
+			});
+
+			chart.appear(1000, 100);
+		}
+	}, [cdata]);
+
+	return <div id="chartdiv" style={{ width: "100%", height: "100%" }}></div>;
+};
+
+export default StackedColumnChart;
